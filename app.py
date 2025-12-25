@@ -1,6 +1,7 @@
 
 import os
 import sqlite3
+import re
 from fastapi import FastAPI, Header, HTTPException
 
 DB_PATH = os.getenv("DB_PATH", "SunnahDb.db")
@@ -8,6 +9,12 @@ DB_PATH = os.getenv("DB_PATH", "SunnahDb.db")
 
 app = app = FastAPI()  # optional: hide docs in public
 
+HARAKAT_REGEX = re.compile(
+    r"[\u064B-\u0652\u0670\u06D6-\u06ED]"
+)
+
+def remove_harakat(text: str) -> str:
+    return HARAKAT_REGEX.sub("", text)
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -39,6 +46,8 @@ def random_hadith():
 
     if not row:
         raise HTTPException(status_code=404, detail="No hadith found")
+        
+    clean_text = remove_harakat(row["HadithText"])
 
     return {
         "id": row["Id"],
