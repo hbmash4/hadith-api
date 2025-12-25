@@ -1,22 +1,14 @@
-
 import os
 import sqlite3
 import re
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, HTTPException
 
 DB_PATH = os.getenv("DB_PATH", "SunnahDb.db")
 
-
-app = app = FastAPI()  # optional: hide docs in public
-
-
-
+app = FastAPI()
 
 ARABIC_SPACES_REGEX = re.compile(r"\s+")
-
-HARAKAT_REGEX = re.compile(
-    r"[\u064B-\u0652\u0670\u06D6-\u06ED]"
-)
+HARAKAT_REGEX = re.compile(r"[\u064B-\u0652\u0670\u06D6-\u06ED]")
 
 def normalize_spaces(text: str) -> str:
     return ARABIC_SPACES_REGEX.sub(" ", text).strip()
@@ -25,29 +17,21 @@ def remove_harakat(text: str) -> str:
     return HARAKAT_REGEX.sub("", text)
 
 def clean_arabic_text(text: str) -> str:
-    text = remove_harakat(text)
-    text = normalize_spaces(text)
-    return text
-
-
-
+    return normalize_spaces(remove_harakat(text))
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
-
-
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-
 @app.get("/hadith/random")
 def random_hadith():
-    
+    MAX_LEN = 400
+
     conn = get_conn()
     rows = conn.execute(
         """
@@ -58,10 +42,8 @@ def random_hadith():
         ORDER BY RANDOM()
         LIMIT 20;
         """
-    ).fetchone()
+    ).fetchall()
     conn.close()
-
-    MAX_LEN = 400
 
     for row in rows:
         clean_text = clean_arabic_text(row["HadithText"])
@@ -75,4 +57,3 @@ def random_hadith():
             }
 
     raise HTTPException(status_code=404, detail="No hadith found")
-
