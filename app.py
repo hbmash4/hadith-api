@@ -4,9 +4,9 @@ import sqlite3
 from fastapi import FastAPI, Header, HTTPException
 
 DB_PATH = os.getenv("DB_PATH", "SunnahDb.db")
-API_KEY = os.getenv("API_KEY")  # set in Render dashboard
 
-app = FastAPI(docs_url=None, redoc_url=None)  # optional: hide docs in public
+
+app = app = FastAPI()  # optional: hide docs in public
 
 
 def get_conn():
@@ -15,11 +15,6 @@ def get_conn():
     return conn
 
 
-def require_key(x_api_key: str | None):
-    if not API_KEY:
-        raise HTTPException(status_code=500, detail="Server not configured")
-    if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 @app.get("/health")
@@ -28,9 +23,8 @@ def health():
 
 
 @app.get("/hadith/random")
-def random_hadith(x_api_key: str | None = Header(default=None, alias="X-API-Key")):
-    require_key(x_api_key)
-
+def random_hadith():
+    
     conn = get_conn()
     row = conn.execute(
         """
