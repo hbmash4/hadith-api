@@ -46,14 +46,14 @@ def random_hadith():
 
     if not row:
         raise HTTPException(status_code=404, detail="No hadith found")
-        
+
     clean_text = remove_harakat(row["HadithText"])
 
     return {
         "id": row["Id"],
         "book": row["Book"],
         "number": row["Number"],
-        "hadithText": row["HadithText"],
+        "hadithText": clean_text,
     }
 
 # import sqlite3
