@@ -9,12 +9,28 @@ DB_PATH = os.getenv("DB_PATH", "SunnahDb.db")
 
 app = app = FastAPI()  # optional: hide docs in public
 
+
+
+
+ARABIC_SPACES_REGEX = re.compile(r"\s+")
+
 HARAKAT_REGEX = re.compile(
     r"[\u064B-\u0652\u0670\u06D6-\u06ED]"
 )
 
+def normalize_spaces(text: str) -> str:
+    return ARABIC_SPACES_REGEX.sub(" ", text).strip()
+
 def remove_harakat(text: str) -> str:
     return HARAKAT_REGEX.sub("", text)
+
+def clean_arabic_text(text: str) -> str:
+    text = remove_harakat(text)
+    text = normalize_spaces(text)
+    return text
+
+
+
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -33,68 +49,30 @@ def health():
 def random_hadith():
     
     conn = get_conn()
-    row = conn.execute(
+    rows = conn.execute(
         """
         SELECT Id, Book, Number, HadithText
         FROM Hadiths
         WHERE lower(Book) IN ('bukhari', 'muslim')
+          AND LENGTH(HadithText) <= 800
         ORDER BY RANDOM()
-        LIMIT 1;
+        LIMIT 20;
         """
     ).fetchone()
     conn.close()
 
-    if not row:
-        raise HTTPException(status_code=404, detail="No hadith found")
+    MAX_LEN = 400
 
-    clean_text = remove_harakat(row["HadithText"])
+    for row in rows:
+        clean_text = clean_arabic_text(row["HadithText"])
+        if len(clean_text) <= MAX_LEN:
+            return {
+                "id": row["Id"],
+                "book": row["Book"],
+                "number": row["Number"],
+                "hadithText": clean_text,
+                "length": len(clean_text),
+            }
 
-    return {
-        "id": row["Id"],
-        "book": row["Book"],
-        "number": row["Number"],
-        "hadithText": clean_text,
-    }
+    raise HTTPException(status_code=404, detail="No hadith found")
 
-# import sqlite3
-# from fastapi import FastAPI, HTTPException
-
-# DB_PATH = "SunnahDb.db"
-
-# app = FastAPI(title="Sunnah Hadith API", version="1.0.0")
-
-
-# def get_conn():
-#     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-#     conn.row_factory = sqlite3.Row
-#     return conn
-
-
-# @app.get("/hadith/random")
-# def random_hadith():
-#     try:
-#         conn = get_conn()
-#         cur = conn.cursor()
-
-#         row = cur.execute("""
-#             SELECT Id, Book, Number, HadithText
-#             FROM Hadiths
-#             WHERE Book IN ('bukhari', 'muslim')
-#             ORDER BY RANDOM()
-#             LIMIT 1;
-#         """).fetchone()
-
-#         conn.close()
-
-#         if not row:
-#             raise HTTPException(status_code=404, detail="No hadith found")
-
-#         return {
-#             "id": row["Id"],
-#             "book": row["Book"],
-#             "number": row["Number"],
-#             "hadith": row["HadithText"]
-#         }
-
-#     except sqlite3.Error as e:
-#         raise HTTPException(status_code=500, detail=str(e))
